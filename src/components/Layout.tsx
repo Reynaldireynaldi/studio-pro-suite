@@ -56,7 +56,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
               </Button>
             </SheetTrigger>
             <SheetContent side="right" className="w-64">
-              <div className="flex flex-col space-16 mt-8">
+              <div className="flex flex-col space-y-4 mt-8">
                 <NavLinks />
               </div>
             </SheetContent>
@@ -64,20 +64,20 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
         </div>
       </header>
 
-      <div className="lg:grid lg:grid-cols-[240px_1fr]">
+      <div className="flex min-h-screen w-full">
         {/* Desktop Sidebar */}
-        <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-60 border-r bg-card p-6 space-24">
-          <div>
+        <aside className="hidden lg:flex flex-col fixed left-0 top-0 h-screen w-60 border-r bg-card p-6">
+          <div className="mb-8">
             <h1 className="text-2xl font-bold text-primary mb-2">OneApp Pro</h1>
-            <p className="text-sm text-muted-foreground">{user?.email}</p>
+            <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
           </div>
-          <nav className="flex-1 space-16">
+          <nav className="flex-1 space-y-2">
             <NavLinks />
           </nav>
         </aside>
 
         {/* Main Content */}
-        <main className="lg:ml-60 min-h-screen">
+        <main className="flex-1 lg:ml-60 w-full">
           {children}
         </main>
       </div>

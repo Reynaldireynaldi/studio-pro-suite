@@ -42,10 +42,10 @@ export default function Dashboard() {
 
   return (
     <Layout>
-      <div className="container-app py-8 space-32">
-        <div className="space-16">
-          <h1 className="text-3xl font-bold">Selamat Datang di OneApp Pro</h1>
-          <p className="text-muted-foreground">
+      <div className="container mx-auto px-4 md:px-8 py-8 max-w-7xl">
+        <div className="space-y-6 mb-8">
+          <h1 className="text-3xl md:text-4xl font-bold">Selamat Datang di OneApp Pro</h1>
+          <p className="text-muted-foreground text-lg">
             Platform lengkap untuk freelancer dan profesional. Kelola CV, headshot, dan invoice dalam satu tempat.
           </p>
         </div>

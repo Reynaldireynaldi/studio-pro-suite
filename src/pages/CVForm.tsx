@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
 
 interface Experience {
   id: string;
@@ -16,6 +16,13 @@ interface Experience {
   job_title: string;
   start_date: string;
   end_date: string;
+  description_bullets: string[];
+}
+
+interface Project {
+  id: string;
+  project_name: string;
+  technologies: string[];
   description_bullets: string[];
 }
 
@@ -35,6 +42,9 @@ export default function CVForm() {
 
   const [skillInput, setSkillInput] = useState('');
   const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [techInput, setTechInput] = useState<Record<string, string>>({});
+  const [enhancing, setEnhancing] = useState<string | null>(null);
 
   const addSkill = () => {
     if (skillInput.trim()) {
@@ -72,6 +82,73 @@ export default function CVForm() {
 
   const removeExperience = (id: string) => {
     setExperiences(prev => prev.filter(exp => exp.id !== id));
+  };
+
+  const addProject = () => {
+    setProjects(prev => [...prev, {
+      id: crypto.randomUUID(),
+      project_name: '',
+      technologies: [],
+      description_bullets: ['']
+    }]);
+  };
+
+  const updateProject = (id: string, field: string, value: any) => {
+    setProjects(prev => prev.map(proj =>
+      proj.id === id ? { ...proj, [field]: value } : proj
+    ));
+  };
+
+  const removeProject = (id: string) => {
+    setProjects(prev => prev.filter(proj => proj.id !== id));
+  };
+
+  const addTechnology = (projectId: string) => {
+    const tech = techInput[projectId]?.trim();
+    if (tech) {
+      setProjects(prev => prev.map(proj =>
+        proj.id === projectId
+          ? { ...proj, technologies: [...proj.technologies, tech] }
+          : proj
+      ));
+      setTechInput(prev => ({ ...prev, [projectId]: '' }));
+    }
+  };
+
+  const removeTechnology = (projectId: string, index: number) => {
+    setProjects(prev => prev.map(proj =>
+      proj.id === projectId
+        ? { ...proj, technologies: proj.technologies.filter((_, i) => i !== index) }
+        : proj
+    ));
+  };
+
+  const enhanceWithAI = async (fieldName: string, content: string, setter: (value: string) => void) => {
+    setEnhancing(fieldName);
+    try {
+      const { data, error } = await supabase.functions.invoke('enhance-cv-field', {
+        body: { fieldName, content }
+      });
+
+      if (error) throw error;
+
+      if (data?.enhancedText) {
+        setter(data.enhancedText);
+        toast({
+          title: 'Berhasil',
+          description: 'Teks berhasil dipoles dengan AI',
+        });
+      }
+    } catch (error) {
+      console.error('Error enhancing with AI:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal memoles dengan AI',
+        variant: 'destructive',
+      });
+    } finally {
+      setEnhancing(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -118,11 +195,28 @@ export default function CVForm() {
         if (expError) throw expError;
       }
 
+      // Create projects
+      if (projects.length > 0) {
+        const projectsData = projects.map(proj => ({
+          owner_id: user.id,
+          cv_profile_id: profile.id,
+          project_name: proj.project_name,
+          technologies_json: proj.technologies,
+          description_bullets_json: proj.description_bullets,
+        }));
+
+        const { error: projError } = await (supabase as any)
+          .from('cv_projects')
+          .insert(projectsData);
+
+        if (projError) throw projError;
+      }
+
       toast({
         title: 'Berhasil',
         description: 'CV berhasil dibuat',
       });
-      navigate('/cv');
+      navigate('/cv/list');
     } catch (error) {
       console.error('Error creating CV:', error);
       toast({
@@ -187,7 +281,25 @@ export default function CVForm() {
                 />
               </div>
               <div>
-                <Label>Ringkasan Profesional</Label>
+                <div className="flex justify-between items-center mb-2">
+                  <Label>Ringkasan Profesional</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    disabled={!formData.summary || enhancing === 'summary'}
+                    onClick={() => enhanceWithAI('summary', formData.summary, (text) => 
+                      setFormData(prev => ({ ...prev, summary: text }))
+                    )}
+                  >
+                    {enhancing === 'summary' ? (
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    ) : (
+                      <Sparkles className="h-3 w-3 mr-1" />
+                    )}
+                    Polish dengan AI
+                  </Button>
+                </div>
                 <Textarea
                   rows={4}
                   value={formData.summary}
@@ -286,12 +398,119 @@ export default function CVForm() {
                     </div>
                   </div>
                   <div>
-                    <Label>Deskripsi</Label>
+                    <div className="flex justify-between items-center mb-2">
+                      <Label>Deskripsi</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!exp.description_bullets[0] || enhancing === `exp-${exp.id}`}
+                        onClick={() => enhanceWithAI('description', exp.description_bullets[0], (text) =>
+                          updateExperience(exp.id, 'description_bullets', [text])
+                        )}
+                      >
+                        {enhancing === `exp-${exp.id}` ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3 mr-1" />
+                        )}
+                        Polish dengan AI
+                      </Button>
+                    </div>
                     <Textarea
                       rows={3}
                       value={exp.description_bullets[0]}
                       onChange={(e) => updateExperience(exp.id, 'description_bullets', [e.target.value])}
                       placeholder="Jelaskan tanggung jawab dan pencapaian Anda..."
+                    />
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <CardTitle>Pengalaman Projek</CardTitle>
+              <Button type="button" variant="outline" onClick={addProject}>
+                <Plus className="h-4 w-4 mr-2" />
+                Tambah
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {projects.map((proj) => (
+                <div key={proj.id} className="border rounded-lg p-4 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <h4 className="font-medium">Projek #{projects.indexOf(proj) + 1}</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => removeProject(proj.id)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                  <div>
+                    <Label>Nama Projek</Label>
+                    <Input
+                      value={proj.project_name}
+                      onChange={(e) => updateProject(proj.id, 'project_name', e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <Label>Teknologi</Label>
+                    <div className="flex gap-2 mb-2">
+                      <Input
+                        placeholder="Tambah teknologi"
+                        value={techInput[proj.id] || ''}
+                        onChange={(e) => setTechInput(prev => ({ ...prev, [proj.id]: e.target.value }))}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTechnology(proj.id))}
+                      />
+                      <Button type="button" onClick={() => addTechnology(proj.id)}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {proj.technologies.map((tech, index) => (
+                        <div key={index} className="flex items-center gap-1 bg-secondary px-3 py-1 rounded-full">
+                          <span className="text-sm">{tech}</span>
+                          <button
+                            type="button"
+                            onClick={() => removeTechnology(proj.id, index)}
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            ×
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <Label>Deskripsi</Label>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={!proj.description_bullets[0] || enhancing === `proj-${proj.id}`}
+                        onClick={() => enhanceWithAI('description', proj.description_bullets[0], (text) =>
+                          updateProject(proj.id, 'description_bullets', [text])
+                        )}
+                      >
+                        {enhancing === `proj-${proj.id}` ? (
+                          <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        ) : (
+                          <Sparkles className="h-3 w-3 mr-1" />
+                        )}
+                        Polish dengan AI
+                      </Button>
+                    </div>
+                    <Textarea
+                      rows={3}
+                      value={proj.description_bullets[0]}
+                      onChange={(e) => updateProject(proj.id, 'description_bullets', [e.target.value])}
+                      placeholder="Jelaskan projek dan outcome nya..."
                     />
                   </div>
                 </div>

@@ -299,7 +299,42 @@ export default function HeadshotStudio() {
                       alt={`Generated ${index + 1}`}
                       className="w-full rounded-2xl shadow-lg"
                     />
-                    <Button variant="outline" className="w-full">
+                    <Button 
+                      variant="outline" 
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          const { data: { user } } = await supabase.auth.getUser();
+                          if (!user) throw new Error("Not authenticated");
+
+                          // Update or create CV profile with selected headshot
+                          const { data: existingProfile } = await (supabase as any)
+                            .from('cv_profiles')
+                            .select('id')
+                            .eq('owner_id', user.id)
+                            .maybeSingle();
+
+                          if (existingProfile) {
+                            await (supabase as any)
+                              .from('cv_profiles')
+                              .update({ selected_headshot_url: imgUrl })
+                              .eq('id', existingProfile.id);
+                          }
+
+                          toast({
+                            title: "Berhasil",
+                            description: "Headshot dipilih untuk CV Anda",
+                          });
+                        } catch (error) {
+                          console.error('Error selecting headshot:', error);
+                          toast({
+                            title: "Error",
+                            description: "Gagal memilih headshot",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                    >
                       Pilih & Gunakan di CV
                     </Button>
                   </div>

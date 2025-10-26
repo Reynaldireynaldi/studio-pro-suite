@@ -2,3 +2,12 @@ project_id = "uymiywpuvktdcmrzierd"
 
 [functions.process-headshot]
 verify_jwt = true
+
+[functions.enhance-cv-field]
+verify_jwt = true
+
+[functions.parse-cv-pdf]
+verify_jwt = true
+
+[functions.generate-invoice-pdf]
+verify_jwt = true

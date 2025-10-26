@@ -12,8 +12,10 @@ import Register from "./pages/Register";
 import CompanySettings from "./pages/CompanySettings";
 import Invoices from "./pages/Invoices";
 import InvoiceForm from "./pages/InvoiceForm";
+import InvoiceView from "./pages/InvoiceView";
 import CVBuilder from "./pages/CVBuilder";
 import CVForm from "./pages/CVForm";
+import CVList from "./pages/CVList";
 import HeadshotStudio from "./pages/HeadshotStudio";
 import NotFound from "./pages/NotFound";
 
@@ -33,9 +35,12 @@ const App = () => (
             <Route path="/settings/company" element={<ProtectedRoute><CompanySettings /></ProtectedRoute>} />
             <Route path="/headshot" element={<ProtectedRoute><HeadshotStudio /></ProtectedRoute>} />
             <Route path="/cv" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
+            <Route path="/cv/list" element={<ProtectedRoute><CVList /></ProtectedRoute>} />
             <Route path="/cv/new" element={<ProtectedRoute><CVForm /></ProtectedRoute>} />
+            <Route path="/cv/:id" element={<ProtectedRoute><CVForm /></ProtectedRoute>} />
             <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             <Route path="/invoices/new" element={<ProtectedRoute><InvoiceForm /></ProtectedRoute>} />
+            <Route path="/invoices/view/:id" element={<ProtectedRoute><InvoiceView /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -42,7 +42,23 @@ export default function CVBuilder() {
           <p className="text-muted-foreground">Buat CV profesional dengan bantuan AI</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
+        <div className="grid md:grid-cols-3 gap-6">
+          <Card className="shadow rounded-2xl">
+            <CardHeader>
+              <FileUser className="h-10 w-10 text-primary mb-2" />
+              <CardTitle>Lihat Daftar CV</CardTitle>
+              <CardDescription>
+                Kelola dan download CV yang sudah dibuat
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button variant="outline" className="w-full" onClick={() => navigate('/cv/list')}>
+                <FileUser className="h-4 w-4 mr-2" />
+                Lihat Daftar CV
+              </Button>
+            </CardContent>
+          </Card>
+
           <Card className="shadow rounded-2xl">
             <CardHeader>
               <FileUser className="h-10 w-10 text-primary mb-2" />

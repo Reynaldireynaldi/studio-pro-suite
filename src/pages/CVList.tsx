@@ -1,7 +1,7 @@
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Receipt, Plus, Download, Eye, Trash2 } from 'lucide-react';
+import { FileUser, Plus, Download, Eye, Trash2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useEffect, useState } from 'react';
@@ -14,42 +14,40 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 
-interface Invoice {
+interface CVProfile {
   id: string;
-  invoice_number: string;
-  client_name: string;
-  total: number;
-  status: string;
-  due_date: string;
+  full_name: string;
+  email: string;
+  template_type: string;
   created_at: string;
+  selected_headshot_url: string;
 }
 
-export default function Invoices() {
+export default function CVList() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [cvs, setCvs] = useState<CVProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchInvoices();
+    fetchCVs();
   }, []);
 
-  const fetchInvoices = async () => {
+  const fetchCVs = async () => {
     try {
       const { data, error } = await (supabase as any)
-        .from('invoices')
+        .from('cv_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setInvoices(data || []);
+      setCvs(data || []);
     } catch (error) {
-      console.error('Error fetching invoices:', error);
+      console.error('Error fetching CVs:', error);
       toast({
         title: 'Error',
-        description: 'Gagal memuat invoice',
+        description: 'Gagal memuat CV',
         variant: 'destructive',
       });
     } finally {
@@ -57,10 +55,10 @@ export default function Invoices() {
     }
   };
 
-  const deleteInvoice = async (id: string) => {
+  const deleteCV = async (id: string) => {
     try {
       const { error } = await (supabase as any)
-        .from('invoices')
+        .from('cv_profiles')
         .delete()
         .eq('id', id);
 
@@ -68,43 +66,24 @@ export default function Invoices() {
 
       toast({
         title: 'Berhasil',
-        description: 'Invoice berhasil dihapus',
+        description: 'CV berhasil dihapus',
       });
-      fetchInvoices();
+      fetchCVs();
     } catch (error) {
-      console.error('Error deleting invoice:', error);
+      console.error('Error deleting CV:', error);
       toast({
         title: 'Error',
-        description: 'Gagal menghapus invoice',
+        description: 'Gagal menghapus CV',
         variant: 'destructive',
       });
     }
-  };
-
-  const formatIDR = (amount: number) => {
-    return new Intl.NumberFormat('id-ID', {
-      style: 'currency',
-      currency: 'IDR',
-      minimumFractionDigits: 0,
-    }).format(amount);
-  };
-
-  const getStatusBadge = (status: string) => {
-    const statusMap: Record<string, { variant: "default" | "secondary" | "destructive" | "outline", label: string }> = {
-      draft: { variant: 'outline', label: 'Draft' },
-      sent: { variant: 'default', label: 'Terkirim' },
-      paid: { variant: 'secondary', label: 'Lunas' },
-      overdue: { variant: 'destructive', label: 'Terlambat' },
-    };
-    const statusInfo = statusMap[status] || statusMap.draft;
-    return <Badge variant={statusInfo.variant}>{statusInfo.label}</Badge>;
   };
 
   if (loading) {
     return (
       <Layout>
         <div className="container mx-auto px-4 md:px-8 py-8 max-w-7xl">
-          <p className="text-center text-muted-foreground">Memuat invoice...</p>
+          <p className="text-center text-muted-foreground">Memuat CV...</p>
         </div>
       </Layout>
     );
@@ -115,68 +94,66 @@ export default function Invoices() {
       <div className="container mx-auto px-4 md:px-8 py-8 max-w-7xl">
         <div className="flex items-center justify-between mb-8">
           <div className="space-y-2">
-            <h1 className="text-3xl font-bold">Invoice Manager</h1>
-            <p className="text-muted-foreground">Kelola invoice profesional Anda</p>
+            <h1 className="text-3xl font-bold">Daftar CV</h1>
+            <p className="text-muted-foreground">Kelola dan unduh CV Anda</p>
           </div>
-          <Button className="gap-2" onClick={() => navigate('/invoices/new')}>
+          <Button className="gap-2" onClick={() => navigate('/cv/new')}>
             <Plus className="h-4 w-4" />
-            Buat Invoice
+            Buat CV Baru
           </Button>
         </div>
 
-        {invoices.length === 0 ? (
+        {cvs.length === 0 ? (
           <Card className="shadow rounded-2xl">
             <CardHeader>
-              <CardTitle>Daftar Invoice</CardTitle>
+              <CardTitle>Belum Ada CV</CardTitle>
               <CardDescription>
-                Belum ada invoice. Mulai dengan membuat invoice pertama Anda.
+                Mulai dengan membuat CV pertama Anda.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col items-center justify-center py-12">
-              <Receipt className="h-16 w-16 text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-6">Belum ada invoice. Mulai dengan membuat invoice pertama Anda.</p>
-              <Button onClick={() => navigate('/invoices/new')}>
+              <FileUser className="h-16 w-16 text-muted-foreground mb-4" />
+              <p className="text-muted-foreground mb-6">Belum ada CV. Buat CV pertama Anda sekarang.</p>
+              <Button onClick={() => navigate('/cv/new')}>
                 <Plus className="h-4 w-4 mr-2" />
-                Buat Invoice Pertama
+                Buat CV Pertama
               </Button>
             </CardContent>
           </Card>
         ) : (
           <Card className="shadow rounded-2xl">
             <CardHeader>
-              <CardTitle>Daftar Invoice</CardTitle>
+              <CardTitle>Daftar CV</CardTitle>
               <CardDescription>
-                {invoices.length} invoice ditemukan
+                {cvs.length} CV ditemukan
               </CardDescription>
             </CardHeader>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>No. Invoice</TableHead>
-                    <TableHead>Klien</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Jatuh Tempo</TableHead>
+                    <TableHead>Nama</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Template</TableHead>
+                    <TableHead>Dibuat</TableHead>
                     <TableHead className="text-right">Aksi</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {invoices.map((invoice) => (
-                    <TableRow key={invoice.id}>
-                      <TableCell className="font-medium">{invoice.invoice_number}</TableCell>
-                      <TableCell>{invoice.client_name}</TableCell>
-                      <TableCell>{formatIDR(Number(invoice.total))}</TableCell>
-                      <TableCell>{getStatusBadge(invoice.status)}</TableCell>
+                  {cvs.map((cv) => (
+                    <TableRow key={cv.id}>
+                      <TableCell className="font-medium">{cv.full_name}</TableCell>
+                      <TableCell>{cv.email}</TableCell>
+                      <TableCell className="capitalize">{cv.template_type}</TableCell>
                       <TableCell>
-                        {invoice.due_date ? new Date(invoice.due_date).toLocaleDateString('id-ID') : '-'}
+                        {new Date(cv.created_at).toLocaleDateString('id-ID')}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-2">
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => navigate(`/invoices/view/${invoice.id}`)}
+                            onClick={() => navigate(`/cv/${cv.id}`)}
                           >
                             <Eye className="h-4 w-4" />
                           </Button>
@@ -196,8 +173,8 @@ export default function Invoices() {
                             variant="outline"
                             size="sm"
                             onClick={() => {
-                              if (confirm('Yakin ingin menghapus invoice ini?')) {
-                                deleteInvoice(invoice.id);
+                              if (confirm('Yakin ingin menghapus CV ini?')) {
+                                deleteCV(cv.id);
                               }
                             }}
                           >

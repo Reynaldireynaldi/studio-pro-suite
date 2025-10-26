@@ -2,8 +2,38 @@ import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { FileUser, Upload, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { useRef } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CVBuilder() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadPDF = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.type !== 'application/pdf') {
+        toast({
+          title: 'Error',
+          description: 'Hanya file PDF yang diperbolehkan',
+          variant: 'destructive',
+        });
+        return;
+      }
+      
+      toast({
+        title: 'Info',
+        description: 'Fitur import PDF akan segera tersedia dengan AI parsing',
+      });
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 md:px-8 py-8 max-w-7xl">
@@ -22,7 +52,7 @@ export default function CVBuilder() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full">
+              <Button className="w-full" onClick={() => navigate('/cv/new')}>
                 <Plus className="h-4 w-4 mr-2" />
                 Buat CV Baru
               </Button>
@@ -38,22 +68,20 @@ export default function CVBuilder() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" className="w-full">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="application/pdf"
+                className="hidden"
+                onChange={handleFileChange}
+              />
+              <Button variant="outline" className="w-full" onClick={handleUploadPDF}>
                 <Upload className="h-4 w-4 mr-2" />
                 Upload PDF
               </Button>
             </CardContent>
           </Card>
         </div>
-
-        <Card className="shadow rounded-2xl mt-6 bg-muted/50">
-          <CardContent className="flex flex-col items-center justify-center py-12">
-            <FileUser className="h-16 w-16 text-muted-foreground mb-4" />
-            <p className="text-muted-foreground text-center">
-              Fitur CV Builder akan segera tersedia
-            </p>
-          </CardContent>
-        </Card>
       </div>
     </Layout>
   );

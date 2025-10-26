@@ -1,9 +1,132 @@
 import { Layout } from '@/components/Layout';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Camera, Upload, Sparkles } from 'lucide-react';
+import { Label } from '@/components/ui/label';
+import { Camera, Upload, Sparkles, Loader2 } from 'lucide-react';
+import { useState, useRef } from 'react';
+import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export default function HeadshotStudio() {
+  const { toast } = useToast();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [style, setStyle] = useState('formal');
+  const [loading, setLoading] = useState(false);
+  const [generatedImages, setGeneratedImages] = useState<string[]>([]);
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: "Error",
+        description: "File harus berupa gambar",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: "Error",
+        description: "Ukuran file maksimal 5MB",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setSelectedFile(file);
+    const url = URL.createObjectURL(file);
+    setPreviewUrl(url);
+  };
+
+  const handleGenerate = async () => {
+    if (!selectedFile) {
+      toast({
+        title: "Error",
+        description: "Pilih foto terlebih dahulu",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+    setGeneratedImages([]);
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Upload to storage
+      const fileExt = selectedFile.name.split('.').pop();
+      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
+      
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('headshots')
+        .upload(fileName, selectedFile);
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('headshots')
+        .getPublicUrl(uploadData.path);
+
+      // Convert to base64 for AI processing
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      
+      reader.onload = async () => {
+        const base64Image = reader.result as string;
+
+        // Process with AI
+        const { data, error } = await supabase.functions.invoke('process-headshot', {
+          body: { imageUrl: base64Image, style }
+        });
+
+        if (error) throw error;
+
+        if (data?.imageUrl) {
+          setGeneratedImages([data.imageUrl]);
+          
+          // Save to database
+          await (supabase.from('headshots') as any).insert({
+            owner_id: user.id,
+            source_file_url: publicUrl,
+            variants_json: [data.imageUrl],
+            style,
+            status: 'completed'
+          });
+
+          toast({
+            title: "Berhasil",
+            description: "Headshot profesional berhasil dibuat!",
+          });
+        }
+      };
+
+    } catch (error: any) {
+      console.error('Error generating headshot:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Gagal memproses foto",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <Layout>
       <div className="container mx-auto px-4 md:px-8 py-8 max-w-7xl">
@@ -74,28 +197,113 @@ export default function HeadshotStudio() {
               Format: JPG, PNG. Maksimal 5MB. Pastikan wajah terlihat jelas.
             </CardDescription>
           </CardHeader>
-          <CardContent>
-            <div className="border-2 border-dashed rounded-2xl p-12 text-center">
-              <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground mb-4">
-                Drag & drop foto Anda di sini
-              </p>
-              <Button>
-                <Upload className="h-4 w-4 mr-2" />
-                Pilih Foto
-              </Button>
-            </div>
+          <CardContent className="space-y-6">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileSelect}
+              className="hidden"
+            />
+            
+            {!previewUrl ? (
+              <div 
+                className="border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer hover:border-primary transition-colors"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
+                <p className="text-muted-foreground mb-4">
+                  Klik untuk memilih foto atau drag & drop di sini
+                </p>
+                <Button type="button">
+                  <Upload className="h-4 w-4 mr-2" />
+                  Pilih Foto
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="relative w-full max-w-sm mx-auto">
+                  <img 
+                    src={previewUrl} 
+                    alt="Preview" 
+                    className="w-full rounded-2xl shadow-lg"
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Pilih Gaya</Label>
+                  <Select value={style} onValueChange={setStyle}>
+                    <SelectTrigger className="rounded-2xl">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="formal">Formal Kantor (Jas & Kemeja)</SelectItem>
+                      <SelectItem value="smart-casual">Smart Casual</SelectItem>
+                      <SelectItem value="corporate">Corporate</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex gap-4">
+                  <Button 
+                    onClick={handleGenerate} 
+                    disabled={loading}
+                    className="flex-1"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Memproses...
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="h-4 w-4 mr-2" />
+                        Generate Headshot
+                      </>
+                    )}
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setSelectedFile(null);
+                      setPreviewUrl('');
+                      setGeneratedImages([]);
+                    }}
+                  >
+                    Reset
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        <Card className="shadow rounded-2xl mt-6 bg-muted/50">
-          <CardContent className="flex flex-col items-center justify-center py-8">
-            <Sparkles className="h-12 w-12 text-primary mb-3" />
-            <p className="text-muted-foreground text-center">
-              Fitur AI Headshot akan segera tersedia
-            </p>
-          </CardContent>
-        </Card>
+        {generatedImages.length > 0 && (
+          <Card className="shadow rounded-2xl mt-6">
+            <CardHeader>
+              <CardTitle>Hasil Headshot Profesional</CardTitle>
+              <CardDescription>
+                Headshot Anda telah diproses dengan AI
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid md:grid-cols-3 gap-6">
+                {generatedImages.map((imgUrl, index) => (
+                  <div key={index} className="space-y-3">
+                    <img 
+                      src={imgUrl} 
+                      alt={`Generated ${index + 1}`}
+                      className="w-full rounded-2xl shadow-lg"
+                    />
+                    <Button variant="outline" className="w-full">
+                      Pilih & Gunakan di CV
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </Layout>
   );

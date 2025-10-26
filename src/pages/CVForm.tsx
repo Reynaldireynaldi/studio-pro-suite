@@ -69,7 +69,81 @@ export default function CVForm() {
       }
     };
 
+    // Load CV data if editing existing CV
+    const loadCVData = async () => {
+      const pathParts = window.location.pathname.split('/');
+      const cvId = pathParts[pathParts.length - 1];
+      
+      // Check if we're editing (URL has a UUID)
+      if (cvId && cvId !== 'new' && cvId.includes('-')) {
+        try {
+          const { data: cvProfile, error: cvError } = await (supabase as any)
+            .from('cv_profiles')
+            .select('*')
+            .eq('id', cvId)
+            .single();
+
+          if (cvError) throw cvError;
+
+          if (cvProfile) {
+            setFormData({
+              full_name: cvProfile.full_name || '',
+              email: cvProfile.email || '',
+              phone: cvProfile.phone || '',
+              location: cvProfile.location || '',
+              summary: cvProfile.summary || '',
+              skills: cvProfile.skills_json || [],
+            });
+
+            if (cvProfile.selected_headshot_url) {
+              setHeadshotUrl(cvProfile.selected_headshot_url);
+            }
+
+            // Load experiences
+            const { data: exps } = await (supabase as any)
+              .from('cv_experiences')
+              .select('*')
+              .eq('cv_profile_id', cvId);
+
+            if (exps && exps.length > 0) {
+              setExperiences(exps.map((exp: any) => ({
+                id: exp.id,
+                company: exp.company,
+                job_title: exp.job_title,
+                start_date: exp.start_date || '',
+                end_date: exp.end_date || '',
+                description_bullets: exp.description_bullets_json || [''],
+              })));
+            }
+
+            // Load projects
+            const { data: projs } = await (supabase as any)
+              .from('cv_projects')
+              .select('*')
+              .eq('cv_profile_id', cvId);
+
+            if (projs && projs.length > 0) {
+              setProjects(projs.map((proj: any) => ({
+                id: proj.id,
+                project_name: proj.project_name,
+                technologies: proj.technologies_json || [],
+                description_bullets: proj.description_bullets_json || [''],
+              })));
+            }
+          }
+        } catch (error) {
+          console.error('Error loading CV data:', error);
+          toast({
+            title: 'Error',
+            description: 'Gagal memuat data CV',
+            variant: 'destructive',
+          });
+        }
+      }
+    };
+
     loadHeadshot();
+    loadCVData();
 
     // Load parsed data if coming from PDF import
     const parsedData = location.state?.parsedData;

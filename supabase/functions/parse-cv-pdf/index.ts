@@ -19,20 +19,56 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    const prompt = `Extract and structure the following CV/resume information into JSON format with these fields:
-- full_name
-- email
-- phone
-- location
-- summary
-- skills (array of strings)
-- experiences (array with: company, job_title, start_date (YYYY-MM), end_date (YYYY-MM), description_bullets (array))
-- projects (array with: project_name, technologies (array), description_bullets (array))
+    const prompt = `You are a CV parser. Extract all information from the following CV/resume text and return it as JSON.
+
+IMPORTANT: Look for these fields in the CV text:
+- full_name: Look for the person's name (usually at the top)
+- email: Email address
+- phone: Phone/mobile number
+- location: City, state, or address
+- summary: Professional summary or objective statement
+- skills: Array of technical skills, soft skills, or competencies
+- experiences: Array of work experiences with:
+  * company: Company name
+  * job_title: Position/title
+  * start_date: Start date in YYYY-MM format
+  * end_date: End date in YYYY-MM format (use "Present" if current)
+  * description_bullets: Array of responsibilities/achievements
+- projects: Array of projects with:
+  * project_name: Project name
+  * technologies: Array of technologies used
+  * description_bullets: Array of project details
 
 CV Text:
 ${pdfText}
 
-Return ONLY valid JSON, no other text.`;
+Return ONLY a valid JSON object with all extracted fields. If a field is not found, use null for strings, empty array [] for arrays.
+
+Example format:
+{
+  "full_name": "John Doe",
+  "email": "john@example.com",
+  "phone": "+1234567890",
+  "location": "New York, NY",
+  "summary": "Experienced software engineer...",
+  "skills": ["JavaScript", "Python", "React"],
+  "experiences": [
+    {
+      "company": "Tech Corp",
+      "job_title": "Software Engineer",
+      "start_date": "2020-01",
+      "end_date": "Present",
+      "description_bullets": ["Developed features", "Led team"]
+    }
+  ],
+  "projects": [
+    {
+      "project_name": "E-commerce Platform",
+      "technologies": ["React", "Node.js"],
+      "description_bullets": ["Built shopping cart", "Integrated payment"]
+    }
+  ]
+}`;
 
     const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',

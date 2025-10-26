@@ -12,7 +12,39 @@ serve(async (req) => {
   }
 
   try {
-    const { invoiceData, companyData } = await req.json();
+    const { invoiceId, invoiceData, companyData } = await req.json();
+    
+    let invoice = invoiceData;
+    let company = companyData;
+    
+    // If only invoiceId provided, fetch from database
+    if (invoiceId && !invoice) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      
+      const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const { data, error } = await supabase
+        .from('invoices')
+        .select('*')
+        .eq('id', invoiceId)
+        .single();
+      
+      if (error) throw error;
+      invoice = data;
+      
+      // Fetch company data
+      const { data: companyResult } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('owner_id', invoice.owner_id)
+        .maybeSingle();
+      
+      company = companyResult;
+    }
+    
+    if (!invoice) throw new Error('Invoice not found');
 
     // Generate HTML for PDF
     const html = `
@@ -38,38 +70,38 @@ serve(async (req) => {
 </head>
 <body>
   <div class="header">
-    ${companyData?.logo_url ? `<img src="${companyData.logo_url}" class="logo" alt="Company Logo">` : ''}
+    ${company?.logo_url ? `<img src="${company.logo_url}" class="logo" alt="Company Logo">` : ''}
     <div class="company-info">
-      <strong style="font-size: 20px;">${companyData?.company_name || 'Your Company'}</strong><br>
-      ${companyData?.address || ''}<br>
-      ${companyData?.email || ''}<br>
-      ${companyData?.phone || ''}
+      <strong style="font-size: 20px;">${company?.company_name || 'Your Company'}</strong><br>
+      ${company?.address || ''}<br>
+      ${company?.email || ''}<br>
+      ${company?.phone || ''}
     </div>
     <div class="invoice-title">INVOICE</div>
-    <div><strong>No: ${invoiceData.invoice_number}</strong></div>
+    <div><strong>No: ${invoice.invoice_number}</strong></div>
     <div>Tanggal: ${new Date().toLocaleDateString('id-ID')}</div>
-    ${invoiceData.due_date ? `<div>Jatuh Tempo: ${new Date(invoiceData.due_date).toLocaleDateString('id-ID')}</div>` : ''}
+    ${invoice.due_date ? `<div>Jatuh Tempo: ${new Date(invoice.due_date).toLocaleDateString('id-ID')}</div>` : ''}
   </div>
 
   <div class="client-info">
     <div class="section-title">Kepada:</div>
     <div>
-      <strong>${invoiceData.client_name}</strong><br>
-      ${invoiceData.email || ''}
+      <strong>${invoice.client_name}</strong><br>
+      ${invoice.email || ''}
     </div>
   </div>
 
-  ${invoiceData.service_description ? `
+  ${invoice.service_description ? `
   <div class="section">
     <div class="section-title">Deskripsi Layanan:</div>
-    <div>${invoiceData.service_description}</div>
+    <div>${invoice.service_description}</div>
   </div>
   ` : ''}
 
-  ${invoiceData.offer_proposal ? `
+  ${invoice.offer_proposal ? `
   <div class="section">
     <div class="section-title">Penawaran:</div>
-    <div>${invoiceData.offer_proposal}</div>
+    <div>${invoice.offer_proposal}</div>
   </div>
   ` : ''}
 
@@ -82,7 +114,7 @@ serve(async (req) => {
       </tr>
     </thead>
     <tbody>
-      ${invoiceData.items_json.map((item: any) => `
+      ${invoice.items_json.map((item: any) => `
         <tr>
           <td>${item.work_item || item.description}</td>
           <td class="text-right">Rp ${(item.price || (item.quantity * item.unit_price)).toLocaleString('id-ID')}</td>
@@ -93,44 +125,44 @@ serve(async (req) => {
     <tfoot>
       <tr>
         <td colspan="2" class="text-right"><strong>Subtotal:</strong></td>
-        <td class="text-right">Rp ${Number(invoiceData.subtotal).toLocaleString('id-ID')}</td>
+        <td class="text-right">Rp ${Number(invoice.subtotal).toLocaleString('id-ID')}</td>
       </tr>
-      ${invoiceData.tax > 0 ? `
+      ${invoice.tax > 0 ? `
       <tr>
         <td colspan="2" class="text-right"><strong>Pajak:</strong></td>
-        <td class="text-right">Rp ${Number(invoiceData.tax).toLocaleString('id-ID')}</td>
+        <td class="text-right">Rp ${Number(invoice.tax).toLocaleString('id-ID')}</td>
       </tr>
       ` : ''}
       <tr class="total-row">
         <td colspan="2" class="text-right"><strong>TOTAL:</strong></td>
-        <td class="text-right"><strong>Rp ${Number(invoiceData.total).toLocaleString('id-ID')}</strong></td>
+        <td class="text-right"><strong>Rp ${Number(invoice.total).toLocaleString('id-ID')}</strong></td>
       </tr>
     </tfoot>
   </table>
 
-  ${invoiceData.notes ? `
+  ${invoice.notes || company?.payment_terms_default ? `
   <div class="section" style="margin-top: 30px;">
     <div class="section-title">Catatan:</div>
-    <div>${invoiceData.notes}</div>
+    <div>${invoice.notes || company?.payment_terms_default || 'Terima kasih atas kepercayaan Anda.'}</div>
   </div>
   ` : ''}
 
-  ${companyData?.bank_name ? `
+  ${company?.bank_name ? `
   <div class="section" style="margin-top: 40px;">
     <div class="section-title">Informasi Pembayaran:</div>
     <div>
-      Bank: ${companyData.bank_name}<br>
-      Nama Rekening: ${companyData.bank_account_name || ''}<br>
-      Nomor Rekening: ${companyData.bank_account_number || ''}
+      Bank: ${company.bank_name}<br>
+      Nama Rekening: ${company.bank_account_name || ''}<br>
+      Nomor Rekening: ${company.bank_account_number || ''}
     </div>
   </div>
   ` : ''}
 
-  ${invoiceData.attachments_json && invoiceData.attachments_json.length > 0 ? `
+  ${invoice.attachments_json && invoice.attachments_json.length > 0 ? `
   <div class="section" style="margin-top: 40px;">
     <div class="section-title">Lampiran:</div>
     <ul>
-      ${invoiceData.attachments_json.map((url: string, idx: number) => `
+      ${invoice.attachments_json.map((url: string, idx: number) => `
         <li>Dokumen ${idx + 1}: <a href="${url}">${url}</a></li>
       `).join('')}
     </ul>

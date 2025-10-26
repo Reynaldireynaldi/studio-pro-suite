@@ -10,6 +10,9 @@ import Dashboard from "./pages/Dashboard";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import CompanySettings from "./pages/CompanySettings";
+import Invoices from "./pages/Invoices";
+import CVBuilder from "./pages/CVBuilder";
+import HeadshotStudio from "./pages/HeadshotStudio";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,10 +29,9 @@ const App = () => (
             <Route path="/register" element={<Register />} />
             <Route path="/" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
             <Route path="/settings/company" element={<ProtectedRoute><CompanySettings /></ProtectedRoute>} />
-            {/* Placeholder routes - akan diimplementasikan selanjutnya */}
-            <Route path="/headshot" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/cv" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-            <Route path="/invoices" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+            <Route path="/headshot" element={<ProtectedRoute><HeadshotStudio /></ProtectedRoute>} />
+            <Route path="/cv" element={<ProtectedRoute><CVBuilder /></ProtectedRoute>} />
+            <Route path="/invoices" element={<ProtectedRoute><Invoices /></ProtectedRoute>} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

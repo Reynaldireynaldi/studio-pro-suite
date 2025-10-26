@@ -100,13 +100,17 @@ export default function HeadshotStudio() {
           setGeneratedImages([data.imageUrl]);
           
           // Save to database
-          await (supabase.from('headshots') as any).insert({
+          const { error: dbError } = await (supabase as any).from('headshots').insert({
             owner_id: user.id,
             source_file_url: publicUrl,
             variants_json: [data.imageUrl],
             style,
             status: 'completed'
           });
+          
+          if (dbError) {
+            console.error('Database error:', dbError);
+          }
 
           toast({
             title: "Berhasil",

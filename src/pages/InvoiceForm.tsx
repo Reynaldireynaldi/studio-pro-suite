@@ -108,25 +108,23 @@ export default function InvoiceForm() {
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
 
-      const { error } = await (supabase
-        .from('invoices') as any)
-        .insert({
-          owner_id: user.id,
-          invoice_number: formData.invoice_number,
-          client_name: formData.client_name,
-          email: formData.email,
-          bill_to_name: formData.bill_to_name,
-          bill_to_address: formData.bill_to_address,
-          bill_to_email: formData.bill_to_email,
-          bill_to_phone: formData.bill_to_phone,
-          items_json: items,
-          subtotal,
-          tax: formData.tax,
-          total,
-          due_date: formData.due_date || null,
-          notes: formData.notes,
-          status: 'draft',
-        });
+      const { error } = await (supabase as any).from('invoices').insert({
+        owner_id: user.id,
+        invoice_number: formData.invoice_number,
+        client_name: formData.client_name,
+        email: formData.email,
+        bill_to_name: formData.bill_to_name,
+        bill_to_address: formData.bill_to_address,
+        bill_to_email: formData.bill_to_email,
+        bill_to_phone: formData.bill_to_phone,
+        items_json: items,
+        subtotal,
+        tax: formData.tax,
+        total,
+        due_date: formData.due_date || null,
+        notes: formData.notes,
+        status: 'draft',
+      });
 
       if (error) throw error;
 

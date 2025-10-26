@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Trash2, Plus, Sparkles, Paperclip } from 'lucide-react';
+import { z } from 'zod';
 
 type InvoiceItem = {
   id: string;
@@ -16,6 +17,23 @@ type InvoiceItem = {
   price: number;
   brief_description: string;
 };
+
+// Validation schema
+const invoiceSchema = z.object({
+  invoice_number: z.string().trim().min(1, 'Nomor invoice harus diisi').max(50, 'Nomor invoice maksimal 50 karakter'),
+  client_name: z.string().trim().min(1, 'Nama klien harus diisi').max(200, 'Nama klien maksimal 200 karakter'),
+  email: z.string().trim().email('Format email tidak valid').max(255, 'Email maksimal 255 karakter').optional().or(z.literal('')),
+  notes: z.string().max(2000, 'Catatan maksimal 2000 karakter').optional(),
+  service_description: z.string().max(5000, 'Deskripsi layanan maksimal 5000 karakter').optional(),
+  offer_proposal: z.string().max(5000, 'Penawaran maksimal 5000 karakter').optional(),
+  due_date: z.string().optional(),
+});
+
+const itemSchema = z.object({
+  work_item: z.string().trim().min(1, 'Item pekerjaan harus diisi').max(500, 'Item pekerjaan maksimal 500 karakter'),
+  brief_description: z.string().max(1000, 'Deskripsi maksimal 1000 karakter').optional(),
+  price: z.number().min(0, 'Harga tidak boleh negatif'),
+});
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
@@ -135,22 +153,34 @@ export default function InvoiceForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.client_name.trim()) {
-      toast({
-        title: "Error",
-        description: "Nama klien harus diisi",
-        variant: "destructive",
-      });
-      return;
+    // Validate form data
+    try {
+      invoiceSchema.parse(formData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error Validasi",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
-    if (items.some(item => !item.work_item.trim())) {
-      toast({
-        title: "Error",
-        description: "Semua item pekerjaan harus diisi",
-        variant: "destructive",
-      });
-      return;
+    // Validate items
+    for (const item of items) {
+      try {
+        itemSchema.parse(item);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast({
+            title: "Error Validasi Item",
+            description: error.errors[0].message,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
     }
 
     setLoading(true);
@@ -159,7 +189,7 @@ export default function InvoiceForm() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
-      // Upload attachments
+      // Upload attachments with signed URLs
       const attachmentUrls: string[] = [];
       for (const file of attachments) {
         const fileName = `${user.id}/${Date.now()}_${file.name}`;
@@ -169,11 +199,14 @@ export default function InvoiceForm() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
+        // Use signed URL with 1 year expiry for attachments
+        const { data: signedUrlData, error: signedUrlError } = await supabase.storage
           .from('cv-documents')
-          .getPublicUrl(uploadData.path);
+          .createSignedUrl(uploadData.path, 31536000); // 1 year in seconds
+
+        if (signedUrlError) throw signedUrlError;
         
-        attachmentUrls.push(publicUrl);
+        attachmentUrls.push(signedUrlData.signedUrl);
       }
 
       const subtotal = calculateSubtotal();
@@ -206,9 +239,10 @@ export default function InvoiceForm() {
       navigate('/invoices');
     } catch (error) {
       console.error('Error creating invoice:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Gagal membuat invoice';
       toast({
         title: "Error",
-        description: "Gagal membuat invoice",
+        description: errorMessage.includes('storage') ? 'Gagal mengunggah file' : 'Gagal membuat invoice',
         variant: "destructive",
       });
     } finally {

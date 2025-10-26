@@ -8,6 +8,20 @@ import { Building2, Upload, X } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { z } from 'zod';
+
+// Validation schema
+const companySchema = z.object({
+  company_name: z.string().trim().min(1, 'Nama perusahaan harus diisi').max(200, 'Nama perusahaan maksimal 200 karakter'),
+  email: z.string().trim().email('Format email tidak valid').max(255, 'Email maksimal 255 karakter').optional().or(z.literal('')),
+  phone: z.string().trim().max(50, 'Nomor telepon maksimal 50 karakter').optional().or(z.literal('')),
+  address: z.string().max(500, 'Alamat maksimal 500 karakter').optional().or(z.literal('')),
+  website: z.string().max(200, 'Website maksimal 200 karakter').optional().or(z.literal('')),
+  bank_name: z.string().max(100, 'Nama bank maksimal 100 karakter').optional().or(z.literal('')),
+  bank_account_name: z.string().max(200, 'Nama rekening maksimal 200 karakter').optional().or(z.literal('')),
+  bank_account_number: z.string().max(50, 'Nomor rekening maksimal 50 karakter').optional().or(z.literal('')),
+  payment_terms: z.string().max(1000, 'Syarat pembayaran maksimal 1000 karakter').optional().or(z.literal('')),
+});
 
 const formatNPWP = (value: string) => {
   // Remove all non-digits
@@ -127,14 +141,18 @@ export default function CompanySettings() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    // Validate required fields
-    if (!formData.company_name.trim()) {
-      toast({
-        title: "Error",
-        description: "Nama perusahaan harus diisi",
-        variant: "destructive",
-      });
-      return;
+    // Validate form data
+    try {
+      companySchema.parse(formData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: "Error Validasi",
+          description: error.errors[0].message,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     setLoading(true);

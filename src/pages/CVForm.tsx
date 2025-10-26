@@ -9,6 +9,27 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, Plus, Trash2, Sparkles, Loader2, Camera } from 'lucide-react';
+import { z } from 'zod';
+
+// Validation schema
+const cvProfileSchema = z.object({
+  full_name: z.string().trim().min(1, 'Nama lengkap harus diisi').max(200, 'Nama lengkap maksimal 200 karakter'),
+  email: z.string().trim().email('Format email tidak valid').max(255, 'Email maksimal 255 karakter'),
+  phone: z.string().trim().max(50, 'Nomor telepon maksimal 50 karakter').optional().or(z.literal('')),
+  location: z.string().trim().max(200, 'Lokasi maksimal 200 karakter').optional().or(z.literal('')),
+  summary: z.string().max(2000, 'Ringkasan maksimal 2000 karakter').optional().or(z.literal('')),
+});
+
+const experienceSchema = z.object({
+  company: z.string().trim().min(1, 'Nama perusahaan harus diisi').max(200, 'Nama perusahaan maksimal 200 karakter'),
+  job_title: z.string().trim().min(1, 'Posisi harus diisi').max(200, 'Posisi maksimal 200 karakter'),
+  description_bullets: z.array(z.string().max(1000, 'Deskripsi maksimal 1000 karakter')),
+});
+
+const projectSchema = z.object({
+  project_name: z.string().trim().min(1, 'Nama proyek harus diisi').max(200, 'Nama proyek maksimal 200 karakter'),
+  description_bullets: z.array(z.string().max(1000, 'Deskripsi maksimal 1000 karakter')),
+});
 
 interface Experience {
   id: string;
@@ -171,7 +192,7 @@ export default function CVForm() {
         })));
       }
     }
-  }, [location]);
+  }, [location.state, toast]);
 
   const addSkill = () => {
     if (skillInput.trim()) {
@@ -280,11 +301,58 @@ export default function CVForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate profile data
+    try {
+      cvProfileSchema.parse(formData);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        toast({
+          title: 'Error Validasi',
+          description: error.errors[0].message,
+          variant: 'destructive',
+        });
+        return;
+      }
+    }
+
+    // Validate experiences
+    for (const exp of experiences) {
+      try {
+        experienceSchema.parse(exp);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast({
+            title: 'Error Validasi Pengalaman',
+            description: error.errors[0].message,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
+
+    // Validate projects
+    for (const proj of projects) {
+      try {
+        projectSchema.parse(proj);
+      } catch (error) {
+        if (error instanceof z.ZodError) {
+          toast({
+            title: 'Error Validasi Proyek',
+            description: error.errors[0].message,
+            variant: 'destructive',
+          });
+          return;
+        }
+      }
+    }
+
     setLoading(true);
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error('User not authenticated');
+      if (!user) throw new Error('Not authenticated');
 
       // Create CV profile
       const { data: profile, error: profileError } = await (supabase as any)
@@ -341,14 +409,15 @@ export default function CVForm() {
 
       toast({
         title: 'Berhasil',
-        description: 'CV berhasil dibuat',
+        description: 'CV berhasil disimpan',
       });
-      navigate('/cv/list');
+
+      navigate('/cv');
     } catch (error) {
-      console.error('Error creating CV:', error);
+      console.error('Error saving CV:', error);
       toast({
         title: 'Error',
-        description: 'Gagal membuat CV',
+        description: 'Gagal menyimpan CV',
         variant: 'destructive',
       });
     } finally {

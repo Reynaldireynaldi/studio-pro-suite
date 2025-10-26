@@ -93,10 +93,13 @@ export default function HeadshotStudio() {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
+      // Get signed URL with 1 year expiry
+      const { data: signedData, error: signedError } = await supabase.storage
         .from('headshots')
-        .getPublicUrl(uploadData.path);
+        .createSignedUrl(uploadData.path, 31536000); // 1 year in seconds
+
+      if (signedError) throw signedError;
+      const publicUrl = signedData.signedUrl;
 
       // Convert to base64 for AI processing
       const reader = new FileReader();

@@ -6,6 +6,12 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Safe error messages
+const safeErrors: Record<string, string> = {
+  'LOVABLE_API_KEY not configured': 'Konfigurasi layanan belum lengkap',
+  'Not authenticated': 'Autentikasi diperlukan',
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -104,8 +110,11 @@ Example format:
     });
   } catch (error) {
     console.error('Error in parse-cv-pdf:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const clientMessage = safeErrors[errorMessage] || 'Terjadi kesalahan saat memproses CV';
+    
     return new Response(JSON.stringify({ 
-      error: error instanceof Error ? error.message : 'Unknown error' 
+      error: clientMessage
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

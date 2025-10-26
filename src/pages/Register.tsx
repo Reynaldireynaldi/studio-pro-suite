@@ -32,8 +32,21 @@ export default function Register() {
       return;
     }
 
-    if (password.length < 6) {
-      toast.error('Password minimal 6 karakter');
+    // Strengthen password requirements
+    if (password.length < 10) {
+      toast.error('Password minimal 10 karakter');
+      setLoading(false);
+      return;
+    }
+
+    // Check password complexity
+    const hasUpperCase = /[A-Z]/.test(password);
+    const hasLowerCase = /[a-z]/.test(password);
+    const hasNumber = /\d/.test(password);
+    const hasSpecialChar = /[@$!%*?&]/.test(password);
+
+    if (!hasUpperCase || !hasLowerCase || !hasNumber || !hasSpecialChar) {
+      toast.error('Password harus mengandung huruf besar, huruf kecil, angka, dan karakter khusus (@$!%*?&)');
       setLoading(false);
       return;
     }
@@ -100,7 +113,7 @@ export default function Register() {
                   required
                   className="rounded-2xl"
                 />
-                <p className="text-xs text-muted-foreground">Minimal 6 karakter</p>
+                <p className="text-xs text-muted-foreground">Minimal 10 karakter dengan huruf besar, huruf kecil, angka, dan karakter khusus</p>
               </div>
               <div className="space-8">
                 <Label htmlFor="confirmPassword">Konfirmasi Password</Label>

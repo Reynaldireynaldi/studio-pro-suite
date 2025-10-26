@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Safe error messages
+const safeErrors: Record<string, string> = {
+  'LOVABLE_API_KEY is not configured': 'Konfigurasi layanan belum lengkap',
+  'No image generated': 'Gagal menghasilkan gambar',
+  'Not authenticated': 'Autentikasi diperlukan',
+};
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -96,9 +103,12 @@ serve(async (req) => {
 
   } catch (error) {
     console.error("Error in process-headshot:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error occurred";
+    const clientMessage = safeErrors[errorMessage] || 'Terjadi kesalahan saat memproses foto';
+    
     return new Response(
       JSON.stringify({ 
-        error: error instanceof Error ? error.message : "Unknown error occurred" 
+        error: clientMessage
       }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

@@ -5,6 +5,7 @@ import { FileUser, Upload, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useRef } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function CVBuilder() {
   const navigate = useNavigate();
@@ -15,7 +16,7 @@ export default function CVBuilder() {
     fileInputRef.current?.click();
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.type !== 'application/pdf') {
@@ -27,10 +28,36 @@ export default function CVBuilder() {
         return;
       }
       
-      toast({
-        title: 'Info',
-        description: 'Fitur import PDF akan segera tersedia dengan AI parsing',
-      });
+      try {
+        toast({
+          title: 'Memproses...',
+          description: 'CV Anda sedang diproses dengan AI',
+        });
+
+        // Read PDF as text (simplified)
+        const text = await file.text();
+        
+        const { data, error } = await supabase.functions.invoke('parse-cv-pdf', {
+          body: { pdfText: text }
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: 'Berhasil',
+          description: 'CV berhasil di-import. Redirecting...',
+        });
+
+        // Navigate to form with parsed data
+        navigate('/cv/new', { state: { parsedData: data.parsedData } });
+      } catch (error) {
+        console.error('Error parsing PDF:', error);
+        toast({
+          title: 'Error',
+          description: 'Gagal memproses PDF',
+          variant: 'destructive',
+        });
+      }
     }
   };
 

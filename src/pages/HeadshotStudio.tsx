@@ -62,6 +62,11 @@ export default function HeadshotStudio() {
 
     setLoading(true);
     setGeneratedImages([]);
+    
+    toast({
+      title: "Memproses...",
+      description: "Headshot Anda sedang diproses dengan AI. Harap tunggu...",
+    });
 
     try {
       const { data: { user } } = await supabase.auth.getUser();

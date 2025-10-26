@@ -123,7 +123,7 @@ export default function InvoiceView() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${invoice?.invoice_number}.html`;
+      a.download = `Invoice-${invoice?.invoice_number}.html`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);

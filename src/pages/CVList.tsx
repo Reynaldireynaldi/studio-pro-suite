@@ -160,11 +160,37 @@ export default function CVList() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              toast({
-                                title: 'Info',
-                                description: 'Fitur download PDF akan segera tersedia',
-                              });
+                            onClick={async () => {
+                              try {
+                                const { data, error } = await supabase.functions.invoke('generate-cv-pdf', {
+                                  body: { cvId: cv.id }
+                                });
+                                
+                                if (error) throw error;
+                                
+                                // Create download link
+                                const blob = new Blob([data.html], { type: 'text/html' });
+                                const url = window.URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `CV-${cv.full_name.replace(/\s+/g, '-')}.html`;
+                                document.body.appendChild(a);
+                                a.click();
+                                document.body.removeChild(a);
+                                window.URL.revokeObjectURL(url);
+                                
+                                toast({
+                                  title: 'Berhasil',
+                                  description: 'CV berhasil diunduh',
+                                });
+                              } catch (error) {
+                                console.error('Error downloading CV:', error);
+                                toast({
+                                  title: 'Error',
+                                  description: 'Gagal mengunduh CV',
+                                  variant: 'destructive',
+                                });
+                              }
                             }}
                           >
                             <Download className="h-4 w-4" />

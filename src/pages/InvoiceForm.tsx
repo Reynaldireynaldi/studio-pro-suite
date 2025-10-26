@@ -8,44 +8,44 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Trash2, Plus } from 'lucide-react';
+import { Trash2, Plus, Sparkles, Paperclip } from 'lucide-react';
 
 type InvoiceItem = {
   id: string;
-  sku?: string;
-  description: string;
-  quantity: number;
-  unit_price: number;
+  work_item: string;
+  price: number;
+  brief_description: string;
 };
 
 export default function InvoiceForm() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [enhancingField, setEnhancingField] = useState<string | null>(null);
   
   const [formData, setFormData] = useState({
     invoice_number: `INV-${Date.now()}`,
     client_name: '',
     email: '',
-    bill_to_name: '',
-    bill_to_address: '',
-    bill_to_email: '',
-    bill_to_phone: '',
     due_date: '',
-    notes: '',
+    notes: 'Terima kasih atas kepercayaan Anda. Pembayaran dapat dilakukan melalui transfer bank.',
     tax: 0,
+    service_description: '',
+    offer_proposal: '',
   });
 
   const [items, setItems] = useState<InvoiceItem[]>([
-    { id: '1', description: '', quantity: 1, unit_price: 0 }
+    { id: '1', work_item: '', price: 0, brief_description: '' }
   ]);
+
+  const [attachments, setAttachments] = useState<File[]>([]);
 
   const addItem = () => {
     setItems([...items, { 
       id: Date.now().toString(), 
-      description: '', 
-      quantity: 1, 
-      unit_price: 0 
+      work_item: '', 
+      price: 0,
+      brief_description: ''
     }]);
   };
 
@@ -61,8 +61,62 @@ export default function InvoiceForm() {
     ));
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const pdfFiles = files.filter(f => f.type === 'application/pdf');
+    
+    if (pdfFiles.length !== files.length) {
+      toast({
+        title: 'Peringatan',
+        description: 'Hanya file PDF yang diperbolehkan',
+        variant: 'destructive',
+      });
+    }
+    
+    setAttachments([...attachments, ...pdfFiles]);
+  };
+
+  const removeAttachment = (index: number) => {
+    setAttachments(attachments.filter((_, i) => i !== index));
+  };
+
+  const enhanceWithAI = async (fieldName: string, content: string) => {
+    if (!content.trim()) {
+      toast({
+        title: 'Error',
+        description: 'Field tidak boleh kosong',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setEnhancingField(fieldName);
+    try {
+      const { data, error } = await supabase.functions.invoke('enhance-cv-field', {
+        body: { fieldName, content }
+      });
+
+      if (error) throw error;
+
+      setFormData({ ...formData, [fieldName]: data.enhancedText });
+      toast({
+        title: 'Berhasil',
+        description: 'Teks berhasil dipoles dengan AI',
+      });
+    } catch (error) {
+      console.error('Error enhancing text:', error);
+      toast({
+        title: 'Error',
+        description: 'Gagal memoles teks',
+        variant: 'destructive',
+      });
+    } finally {
+      setEnhancingField(null);
+    }
+  };
+
   const calculateSubtotal = () => {
-    return items.reduce((sum, item) => sum + (item.quantity * item.unit_price), 0);
+    return items.reduce((sum, item) => sum + item.price, 0);
   };
 
   const calculateTotal = () => {
@@ -90,10 +144,10 @@ export default function InvoiceForm() {
       return;
     }
 
-    if (items.some(item => !item.description.trim())) {
+    if (items.some(item => !item.work_item.trim())) {
       toast({
         title: "Error",
-        description: "Semua item harus memiliki deskripsi",
+        description: "Semua item pekerjaan harus diisi",
         variant: "destructive",
       });
       return;
@@ -105,6 +159,23 @@ export default function InvoiceForm() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
 
+      // Upload attachments
+      const attachmentUrls: string[] = [];
+      for (const file of attachments) {
+        const fileName = `${user.id}/${Date.now()}_${file.name}`;
+        const { data: uploadData, error: uploadError } = await supabase.storage
+          .from('cv-documents')
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('cv-documents')
+          .getPublicUrl(uploadData.path);
+        
+        attachmentUrls.push(publicUrl);
+      }
+
       const subtotal = calculateSubtotal();
       const total = calculateTotal();
 
@@ -113,10 +184,6 @@ export default function InvoiceForm() {
         invoice_number: formData.invoice_number,
         client_name: formData.client_name,
         email: formData.email,
-        bill_to_name: formData.bill_to_name,
-        bill_to_address: formData.bill_to_address,
-        bill_to_email: formData.bill_to_email,
-        bill_to_phone: formData.bill_to_phone,
         items_json: items,
         subtotal,
         tax: formData.tax,
@@ -124,6 +191,9 @@ export default function InvoiceForm() {
         due_date: formData.due_date || null,
         notes: formData.notes,
         status: 'draft',
+        service_description: formData.service_description,
+        offer_proposal: formData.offer_proposal,
+        attachments_json: attachmentUrls,
       });
 
       if (error) throw error;
@@ -214,49 +284,69 @@ export default function InvoiceForm() {
                   />
                 </div>
               </div>
+            </CardContent>
+          </Card>
 
-              <div className="border-t pt-4 space-y-4">
-                <h4 className="font-semibold">Tagihan Kepada (Bill To)</h4>
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="bill_to_name">Nama</Label>
-                    <Input
-                      id="bill_to_name"
-                      value={formData.bill_to_name}
-                      onChange={(e) => setFormData({ ...formData, bill_to_name: e.target.value })}
-                      className="rounded-2xl"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bill_to_phone">Telepon</Label>
-                    <Input
-                      id="bill_to_phone"
-                      value={formData.bill_to_phone}
-                      onChange={(e) => setFormData({ ...formData, bill_to_phone: e.target.value })}
-                      className="rounded-2xl"
-                    />
-                  </div>
-                  <div className="space-y-2 md:col-span-2">
-                    <Label htmlFor="bill_to_address">Alamat</Label>
-                    <Textarea
-                      id="bill_to_address"
-                      value={formData.bill_to_address}
-                      onChange={(e) => setFormData({ ...formData, bill_to_address: e.target.value })}
-                      className="rounded-2xl"
-                      rows={2}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="bill_to_email">Email</Label>
-                    <Input
-                      id="bill_to_email"
-                      type="email"
-                      value={formData.bill_to_email}
-                      onChange={(e) => setFormData({ ...formData, bill_to_email: e.target.value })}
-                      className="rounded-2xl"
-                    />
-                  </div>
+          {/* Service Description */}
+          <Card className="shadow rounded-2xl">
+            <CardHeader>
+              <CardTitle>Deskripsi Layanan</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="service_description">Deskripsi</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => enhanceWithAI('service_description', formData.service_description)}
+                    disabled={enhancingField === 'service_description'}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {enhancingField === 'service_description' ? 'Memproses...' : 'Polish dengan AI'}
+                  </Button>
                 </div>
+                <Textarea
+                  id="service_description"
+                  value={formData.service_description}
+                  onChange={(e) => setFormData({ ...formData, service_description: e.target.value })}
+                  placeholder="Deskripsikan layanan yang Anda tawarkan..."
+                  className="rounded-2xl"
+                  rows={4}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Offer/Proposal */}
+          <Card className="shadow rounded-2xl">
+            <CardHeader>
+              <CardTitle>Penawaran</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="offer_proposal">Detail Penawaran</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => enhanceWithAI('offer_proposal', formData.offer_proposal)}
+                    disabled={enhancingField === 'offer_proposal'}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {enhancingField === 'offer_proposal' ? 'Memproses...' : 'Polish dengan AI'}
+                  </Button>
+                </div>
+                <Textarea
+                  id="offer_proposal"
+                  value={formData.offer_proposal}
+                  onChange={(e) => setFormData({ ...formData, offer_proposal: e.target.value })}
+                  placeholder="Detail penawaran dan proposal..."
+                  className="rounded-2xl"
+                  rows={4}
+                />
               </div>
             </CardContent>
           </Card>
@@ -264,7 +354,7 @@ export default function InvoiceForm() {
           {/* Items */}
           <Card className="shadow rounded-2xl">
             <CardHeader>
-              <CardTitle>Item Invoice</CardTitle>
+              <CardTitle>Item Pekerjaan</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
               {items.map((item, index) => (
@@ -283,42 +373,43 @@ export default function InvoiceForm() {
                     )}
                   </div>
                   
-                  <div className="grid md:grid-cols-4 gap-4">
-                    <div className="space-y-2 md:col-span-2">
-                      <Label>Deskripsi *</Label>
+                  <div className="grid gap-4">
+                    <div className="space-y-2">
+                      <Label>Item Pekerjaan *</Label>
                       <Input
-                        value={item.description}
-                        onChange={(e) => updateItem(item.id, 'description', e.target.value)}
+                        value={item.work_item}
+                        onChange={(e) => updateItem(item.id, 'work_item', e.target.value)}
                         className="rounded-2xl"
+                        placeholder="Nama pekerjaan"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label>Jumlah *</Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 0)}
-                        className="rounded-2xl"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Harga Satuan *</Label>
+                      <Label>Harga (IDR) *</Label>
                       <Input
                         type="number"
                         min="0"
-                        value={item.unit_price}
-                        onChange={(e) => updateItem(item.id, 'unit_price', parseFloat(e.target.value) || 0)}
+                        value={item.price}
+                        onChange={(e) => updateItem(item.id, 'price', parseFloat(e.target.value) || 0)}
                         className="rounded-2xl"
+                        placeholder="0"
                         required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Keterangan Singkat</Label>
+                      <Textarea
+                        value={item.brief_description}
+                        onChange={(e) => updateItem(item.id, 'brief_description', e.target.value)}
+                        className="rounded-2xl"
+                        placeholder="Deskripsi singkat pekerjaan..."
+                        rows={2}
                       />
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-sm text-muted-foreground">Total: </span>
-                    <span className="font-semibold">{formatIDR(item.quantity * item.unit_price)}</span>
+                    <span className="font-semibold">{formatIDR(item.price)}</span>
                   </div>
                 </div>
               ))}
@@ -352,19 +443,79 @@ export default function InvoiceForm() {
             </CardContent>
           </Card>
 
+          {/* Attachments */}
+          <Card className="shadow rounded-2xl">
+            <CardHeader>
+              <CardTitle>Lampiran PDF</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="attachments">Lampiran Dokumen (PDF)</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="attachments"
+                    type="file"
+                    accept="application/pdf"
+                    multiple
+                    onChange={handleFileUpload}
+                    className="rounded-2xl"
+                  />
+                  <Button type="button" variant="outline" size="icon">
+                    <Paperclip className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              
+              {attachments.length > 0 && (
+                <div className="space-y-2">
+                  <Label>File Terlampir:</Label>
+                  {attachments.map((file, index) => (
+                    <div key={index} className="flex items-center justify-between p-2 border rounded-2xl">
+                      <span className="text-sm">{file.name}</span>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeAttachment(index)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
           {/* Notes */}
           <Card className="shadow rounded-2xl">
             <CardHeader>
-              <CardTitle>Catatan</CardTitle>
+              <CardTitle>Catatan Tambahan</CardTitle>
             </CardHeader>
-            <CardContent>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                placeholder="Catatan tambahan untuk invoice..."
-                className="rounded-2xl"
-                rows={4}
-              />
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="notes">Catatan</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => enhanceWithAI('notes', formData.notes)}
+                    disabled={enhancingField === 'notes'}
+                  >
+                    <Sparkles className="h-4 w-4 mr-2" />
+                    {enhancingField === 'notes' ? 'Memproses...' : 'Polish dengan AI'}
+                  </Button>
+                </div>
+                <Textarea
+                  id="notes"
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                  placeholder="Catatan tambahan untuk invoice..."
+                  className="rounded-2xl"
+                  rows={4}
+                />
+              </div>
             </CardContent>
           </Card>
 

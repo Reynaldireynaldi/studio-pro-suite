@@ -4,11 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Plus, Trash2, Sparkles, Loader2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Sparkles, Loader2, Camera } from 'lucide-react';
 
 interface Experience {
   id: string;
@@ -28,8 +28,10 @@ interface Project {
 
 export default function CVForm() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [headshotUrl, setHeadshotUrl] = useState('');
   
   const [formData, setFormData] = useState({
     full_name: '',
@@ -45,6 +47,57 @@ export default function CVForm() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [techInput, setTechInput] = useState<Record<string, string>>({});
   const [enhancing, setEnhancing] = useState<string | null>(null);
+
+  useEffect(() => {
+    // Load headshot if available
+    const loadHeadshot = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await (supabase as any)
+          .from('cv_profiles')
+          .select('selected_headshot_url')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+
+        if (data?.selected_headshot_url) {
+          setHeadshotUrl(data.selected_headshot_url);
+        }
+      } catch (error) {
+        console.error('Error loading headshot:', error);
+      }
+    };
+
+    loadHeadshot();
+
+    // Load parsed data if coming from PDF import
+    const parsedData = location.state?.parsedData;
+    if (parsedData) {
+      setFormData({
+        full_name: parsedData.full_name || '',
+        email: parsedData.email || '',
+        phone: parsedData.phone || '',
+        location: parsedData.location || '',
+        summary: parsedData.summary || '',
+        skills: parsedData.skills || [],
+      });
+      
+      if (parsedData.experiences) {
+        setExperiences(parsedData.experiences.map((exp: any) => ({
+          ...exp,
+          id: crypto.randomUUID(),
+        })));
+      }
+      
+      if (parsedData.projects) {
+        setProjects(parsedData.projects.map((proj: any) => ({
+          ...proj,
+          id: crypto.randomUUID(),
+        })));
+      }
+    }
+  }, [location]);
 
   const addSkill = () => {
     if (skillInput.trim()) {
@@ -247,6 +300,51 @@ export default function CVForm() {
               <CardTitle>Informasi Pribadi</CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
+              {/* Headshot Preview */}
+              <div className="space-y-2">
+                <Label>Foto Profil (Headshot)</Label>
+                {headshotUrl ? (
+                  <div className="flex items-center gap-4">
+                    <img 
+                      src={headshotUrl} 
+                      alt="Headshot" 
+                      className="w-24 h-24 rounded-full object-cover border-2"
+                    />
+                    <div>
+                      <p className="text-sm text-muted-foreground">
+                        Headshot telah dipilih
+                      </p>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate('/headshot-studio')}
+                        className="mt-2"
+                      >
+                        <Camera className="h-4 w-4 mr-2" />
+                        Ganti Headshot
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="border-2 border-dashed rounded-2xl p-6 text-center">
+                    <Camera className="h-12 w-12 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-sm text-muted-foreground mb-2">
+                      Belum ada headshot dipilih
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate('/headshot-studio')}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Pilih Headshot
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
               <div>
                 <Label>Nama Lengkap *</Label>
                 <Input

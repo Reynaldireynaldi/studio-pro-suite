@@ -239,6 +239,7 @@ export type Database = {
       }
       invoices: {
         Row: {
+          attachments_json: Json | null
           bill_to_address: string | null
           bill_to_email: string | null
           bill_to_name: string | null
@@ -251,7 +252,9 @@ export type Database = {
           invoice_number: string
           items_json: Json
           notes: string | null
+          offer_proposal: string | null
           owner_id: string
+          service_description: string | null
           status: string | null
           subtotal: number
           tax: number
@@ -259,6 +262,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          attachments_json?: Json | null
           bill_to_address?: string | null
           bill_to_email?: string | null
           bill_to_name?: string | null
@@ -271,7 +275,9 @@ export type Database = {
           invoice_number: string
           items_json?: Json
           notes?: string | null
+          offer_proposal?: string | null
           owner_id: string
+          service_description?: string | null
           status?: string | null
           subtotal?: number
           tax?: number
@@ -279,6 +285,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          attachments_json?: Json | null
           bill_to_address?: string | null
           bill_to_email?: string | null
           bill_to_name?: string | null
@@ -291,7 +298,9 @@ export type Database = {
           invoice_number?: string
           items_json?: Json
           notes?: string | null
+          offer_proposal?: string | null
           owner_id?: string
+          service_description?: string | null
           status?: string | null
           subtotal?: number
           tax?: number

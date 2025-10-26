@@ -183,11 +183,46 @@ export default function Invoices() {
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              toast({
-                                title: 'Info',
-                                description: 'Fitur download PDF akan segera tersedia',
-                              });
+                            onClick={async () => {
+                              try {
+                                toast({
+                                  title: 'Memproses...',
+                                  description: 'Mengunduh invoice sebagai PDF...',
+                                });
+
+                                const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
+                                  body: { invoiceId: invoice.id }
+                                });
+
+                                if (error) throw error;
+
+                                // Use html2pdf to convert HTML to PDF
+                                const html2pdf = (await import('html2pdf.js')).default;
+                                const element = document.createElement('div');
+                                element.innerHTML = data.html;
+                                
+                                await html2pdf()
+                                  .set({
+                                    margin: 10,
+                                    filename: `Invoice-${invoice.invoice_number}.pdf`,
+                                    html2canvas: { scale: 2 },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                  })
+                                  .from(element)
+                                  .save();
+
+                                toast({
+                                  title: 'Berhasil',
+                                  description: 'Invoice berhasil diunduh sebagai PDF',
+                                });
+                              } catch (error) {
+                                console.error('Error downloading invoice:', error);
+                                toast({
+                                  title: 'Error',
+                                  description: 'Gagal mengunduh invoice',
+                                  variant: 'destructive',
+                                });
+                              }
                             }}
                           >
                             <Download className="h-4 w-4" />

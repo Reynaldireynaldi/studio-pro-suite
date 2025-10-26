@@ -112,26 +112,35 @@ export default function InvoiceView() {
 
   const downloadPDF = async () => {
     try {
+      toast({
+        title: 'Memproses...',
+        description: 'Mengunduh invoice sebagai PDF...',
+      });
+
       const { data, error } = await supabase.functions.invoke('generate-invoice-pdf', {
         body: { invoiceData: invoice, companyData }
       });
 
       if (error) throw error;
 
-      // Create blob and download
-      const blob = new Blob([data.html], { type: 'text/html' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `Invoice-${invoice?.invoice_number}.html`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      // Use html2pdf to convert HTML to PDF
+      const html2pdf = (await import('html2pdf.js')).default;
+      const element = document.createElement('div');
+      element.innerHTML = data.html;
+      
+      await html2pdf()
+        .set({
+          margin: 10,
+          filename: `Invoice-${invoice?.invoice_number}.pdf`,
+          html2canvas: { scale: 2 },
+          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        })
+        .from(element)
+        .save();
 
       toast({
         title: 'Berhasil',
-        description: 'Invoice berhasil diunduh',
+        description: 'Invoice berhasil diunduh sebagai PDF',
       });
     } catch (error) {
       console.error('Error downloading invoice:', error);

@@ -56,7 +56,12 @@ Return ONLY valid JSON, no other text.`;
     }
 
     const data = await response.json();
-    const parsedData = JSON.parse(data.choices[0].message.content);
+    let content = data.choices[0].message.content;
+    
+    // Strip markdown code blocks if present
+    content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    
+    const parsedData = JSON.parse(content);
 
     return new Response(JSON.stringify({ parsedData }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

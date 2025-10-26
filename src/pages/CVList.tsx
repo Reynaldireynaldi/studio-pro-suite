@@ -162,26 +162,35 @@ export default function CVList() {
                             size="sm"
                             onClick={async () => {
                               try {
+                                toast({
+                                  title: 'Memproses...',
+                                  description: 'Mengunduh CV sebagai PDF...',
+                                });
+
                                 const { data, error } = await supabase.functions.invoke('generate-cv-pdf', {
                                   body: { cvId: cv.id }
                                 });
                                 
                                 if (error) throw error;
                                 
-                                // Create download link
-                                const blob = new Blob([data.html], { type: 'text/html' });
-                                const url = window.URL.createObjectURL(blob);
-                                const a = document.createElement('a');
-                                a.href = url;
-                                a.download = `CV-${cv.full_name.replace(/\s+/g, '-')}.html`;
-                                document.body.appendChild(a);
-                                a.click();
-                                document.body.removeChild(a);
-                                window.URL.revokeObjectURL(url);
+                                // Use html2pdf to convert HTML to PDF
+                                const html2pdf = (await import('html2pdf.js')).default;
+                                const element = document.createElement('div');
+                                element.innerHTML = data.html;
+                                
+                                await html2pdf()
+                                  .set({
+                                    margin: 10,
+                                    filename: `CV-${cv.full_name.replace(/\s+/g, '-')}.pdf`,
+                                    html2canvas: { scale: 2 },
+                                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                                  })
+                                  .from(element)
+                                  .save();
                                 
                                 toast({
                                   title: 'Berhasil',
-                                  description: 'CV berhasil diunduh',
+                                  description: 'CV berhasil diunduh sebagai PDF',
                                 });
                               } catch (error) {
                                 console.error('Error downloading CV:', error);

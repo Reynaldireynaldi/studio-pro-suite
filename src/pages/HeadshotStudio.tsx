@@ -63,9 +63,20 @@ export default function HeadshotStudio() {
     setLoading(true);
     setGeneratedImages([]);
     
-    toast({
-      title: "Memproses...",
-      description: "Headshot Anda sedang diproses dengan AI. Harap tunggu...",
+    // Show progress toast
+    const progressToast = toast({
+      title: "Memproses AI Headshot...",
+      description: (
+        <div className="space-y-2 mt-2">
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span>Upload foto... 30%</span>
+          </div>
+          <div className="w-full bg-secondary rounded-full h-2">
+            <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: '30%' }} />
+          </div>
+        </div>
+      ),
     });
 
     try {
@@ -94,6 +105,22 @@ export default function HeadshotStudio() {
       reader.onload = async () => {
         const base64Image = reader.result as string;
 
+        // Update progress
+        toast({
+          title: "Memproses AI Headshot...",
+          description: (
+            <div className="space-y-2 mt-2">
+              <div className="flex items-center gap-2">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Mengirim ke AI... 70%</span>
+              </div>
+              <div className="w-full bg-secondary rounded-full h-2">
+                <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: '70%' }} />
+              </div>
+            </div>
+          ),
+        });
+
         // Process with AI
         const { data, error } = await supabase.functions.invoke('process-headshot', {
           body: { imageUrl: base64Image, style }
@@ -102,6 +129,22 @@ export default function HeadshotStudio() {
         if (error) throw error;
 
         if (data?.imageUrl) {
+          // Update progress to 100%
+          toast({
+            title: "Memproses AI Headshot...",
+            description: (
+              <div className="space-y-2 mt-2">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  <span>Selesai! 100%</span>
+                </div>
+                <div className="w-full bg-secondary rounded-full h-2">
+                  <div className="bg-primary h-2 rounded-full transition-all duration-500" style={{ width: '100%' }} />
+                </div>
+              </div>
+            ),
+          });
+
           setGeneratedImages([data.imageUrl]);
           
           // Save to database

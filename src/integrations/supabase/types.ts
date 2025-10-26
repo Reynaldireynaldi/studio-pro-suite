@@ -14,7 +14,292 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      company_profiles: {
+        Row: {
+          address: string | null
+          bank_account_name: string | null
+          bank_account_number: string | null
+          bank_name: string | null
+          company_name: string
+          created_at: string
+          email: string | null
+          id: string
+          logo_url: string | null
+          owner_id: string
+          payment_terms_default: string | null
+          phone: string | null
+          tax_id: string | null
+          updated_at: string
+          website: string | null
+        }
+        Insert: {
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          company_name: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          owner_id: string
+          payment_terms_default?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Update: {
+          address?: string | null
+          bank_account_name?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
+          company_name?: string
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          owner_id?: string
+          payment_terms_default?: string | null
+          phone?: string | null
+          tax_id?: string | null
+          updated_at?: string
+          website?: string | null
+        }
+        Relationships: []
+      }
+      cv_experiences: {
+        Row: {
+          company: string
+          created_at: string
+          cv_profile_id: string | null
+          description_bullets_json: Json | null
+          end_date: string | null
+          id: string
+          job_title: string
+          owner_id: string
+          start_date: string | null
+        }
+        Insert: {
+          company: string
+          created_at?: string
+          cv_profile_id?: string | null
+          description_bullets_json?: Json | null
+          end_date?: string | null
+          id?: string
+          job_title: string
+          owner_id: string
+          start_date?: string | null
+        }
+        Update: {
+          company?: string
+          created_at?: string
+          cv_profile_id?: string | null
+          description_bullets_json?: Json | null
+          end_date?: string | null
+          id?: string
+          job_title?: string
+          owner_id?: string
+          start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_experiences_cv_profile_id_fkey"
+            columns: ["cv_profile_id"]
+            isOneToOne: false
+            referencedRelation: "cv_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      cv_profiles: {
+        Row: {
+          created_at: string
+          education_json: Json | null
+          email: string | null
+          full_name: string
+          id: string
+          location: string | null
+          owner_id: string
+          phone: string | null
+          selected_headshot_url: string | null
+          skills_json: Json | null
+          summary: string | null
+          template_type: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          education_json?: Json | null
+          email?: string | null
+          full_name: string
+          id?: string
+          location?: string | null
+          owner_id: string
+          phone?: string | null
+          selected_headshot_url?: string | null
+          skills_json?: Json | null
+          summary?: string | null
+          template_type?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          education_json?: Json | null
+          email?: string | null
+          full_name?: string
+          id?: string
+          location?: string | null
+          owner_id?: string
+          phone?: string | null
+          selected_headshot_url?: string | null
+          skills_json?: Json | null
+          summary?: string | null
+          template_type?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      cv_projects: {
+        Row: {
+          created_at: string
+          cv_profile_id: string | null
+          description_bullets_json: Json | null
+          id: string
+          outcome: string | null
+          owner_id: string
+          project_name: string
+          technologies_json: Json | null
+        }
+        Insert: {
+          created_at?: string
+          cv_profile_id?: string | null
+          description_bullets_json?: Json | null
+          id?: string
+          outcome?: string | null
+          owner_id: string
+          project_name: string
+          technologies_json?: Json | null
+        }
+        Update: {
+          created_at?: string
+          cv_profile_id?: string | null
+          description_bullets_json?: Json | null
+          id?: string
+          outcome?: string | null
+          owner_id?: string
+          project_name?: string
+          technologies_json?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cv_projects_cv_profile_id_fkey"
+            columns: ["cv_profile_id"]
+            isOneToOne: false
+            referencedRelation: "cv_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      headshots: {
+        Row: {
+          chosen_url: string | null
+          created_at: string
+          id: string
+          owner_id: string
+          source_file_url: string
+          status: string | null
+          style: string | null
+          updated_at: string
+          variants_json: Json | null
+        }
+        Insert: {
+          chosen_url?: string | null
+          created_at?: string
+          id?: string
+          owner_id: string
+          source_file_url: string
+          status?: string | null
+          style?: string | null
+          updated_at?: string
+          variants_json?: Json | null
+        }
+        Update: {
+          chosen_url?: string | null
+          created_at?: string
+          id?: string
+          owner_id?: string
+          source_file_url?: string
+          status?: string | null
+          style?: string | null
+          updated_at?: string
+          variants_json?: Json | null
+        }
+        Relationships: []
+      }
+      invoices: {
+        Row: {
+          bill_to_address: string | null
+          bill_to_email: string | null
+          bill_to_name: string | null
+          bill_to_phone: string | null
+          client_name: string
+          created_at: string
+          due_date: string | null
+          email: string | null
+          id: string
+          invoice_number: string
+          items_json: Json
+          notes: string | null
+          owner_id: string
+          status: string | null
+          subtotal: number
+          tax: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          bill_to_address?: string | null
+          bill_to_email?: string | null
+          bill_to_name?: string | null
+          bill_to_phone?: string | null
+          client_name: string
+          created_at?: string
+          due_date?: string | null
+          email?: string | null
+          id?: string
+          invoice_number: string
+          items_json?: Json
+          notes?: string | null
+          owner_id: string
+          status?: string | null
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          bill_to_address?: string | null
+          bill_to_email?: string | null
+          bill_to_name?: string | null
+          bill_to_phone?: string | null
+          client_name?: string
+          created_at?: string
+          due_date?: string | null
+          email?: string | null
+          id?: string
+          invoice_number?: string
+          items_json?: Json
+          notes?: string | null
+          owner_id?: string
+          status?: string | null
+          subtotal?: number
+          tax?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
